@@ -91,7 +91,17 @@ in
               The directory where agenix secrets are stored
 
               If set to non-null, the age secrets will be scaffolded
-              automatically. 
+              automatically.
+            '';
+          };
+
+          workRootDir = lib.mkOption {
+            type = types.nullOr types.path;
+            default = null;
+            description = ''
+              The base of the working directory for the runners. The runner name will be created as folder name.
+
+              A value of `null` will default to the systemd `RuntimeDirectory`.
             '';
           };
 
@@ -129,9 +139,14 @@ in
                   type = types.raw;
                   default =
                     lib.listToAttrs (for (range config.num) (i:
-                      lib.nameValuePair "${host}-${name}-${paddedNum i}"
+                      let
+                        runnerName = "${host}-${name}-${paddedNum i}";
+                      in
+                      lib.nameValuePair "${runnerName}"
                         (common // {
                           inherit (config) tokenFile url;
+                          workDir = if top.config.services.github-nix-ci.workRootDir == null then null else
+                          "${top.config.services.github-nix-ci.workRootDir}/${runnerName}";
                         })
                     ));
                 };
@@ -208,6 +223,19 @@ in
           ++ forAttr config.services.github-nix-ci.orgRunners (_: cfg: cfg.output.runners);
       in
       builtins.foldl' (a: b: lib.mkMerge [ a b ]) { } runners;
+
+    systemd.tmpfiles.rules = if config.services.github-nix-ci.workRootDir == null then [ ] else
+    let
+      runnerNames = lib.flatten (
+        (lib.map (r: lib.attrNames r.output.runners) (lib.attrValues config.services.github-nix-ci.orgRunners)) ++
+        (lib.map (r: lib.attrNames r.output.runners) (lib.attrValues config.services.github-nix-ci.personalRunners))
+      );
+    in
+    lib.map
+      (n:
+        "d ${config.services.github-nix-ci.workRootDir}/${n} 0750 ${user} ${group} - -")
+      runnerNames
+    ;
 
     age.secrets =
       let
