@@ -79,6 +79,7 @@ let
       RestartSec = "5s";
       StartLimitBurst = 5;
       StartLimitIntervalSec = "20s";
+      ProtectHome = "read-only";
     };
   } // lib.optionalAttrs isLinux { inherit user group; };
   user = "github-runner";
