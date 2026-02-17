@@ -75,7 +75,7 @@ let
     noDefaultLabels = true;
     extraPackages = extraPackages ++ config.services.github-nix-ci.runnerSettings.extraPackages;
     serviceOverrides = {
-      Restart = "on-failure";
+      # Restart = "on-failure";
       RestartSec = "5s";
       StartLimitBurst = 5;
       StartLimitIntervalSec = "20s";
